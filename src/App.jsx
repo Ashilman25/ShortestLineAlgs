@@ -67,7 +67,7 @@ export default function App() {
   const [cell, setCell]     = useState(30)
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
-  const [theme, setTheme]   = useState('dark')
+  const [theme, setTheme]   = useState('light')
 
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-dark')
@@ -364,8 +364,29 @@ export default function App() {
   }
 
   // Maze utilities
-  const generateMaze = () => { modelRef.current.randomFill(); viewRef.current.draw(); clearAnim() }
-  const clearMaze   = () => { modelRef.current.clear(); modelRef.current.clearMarker('start'); modelRef.current.clearMarker('end'); viewRef.current.draw(); clearAnim() }
+  const generateMaze = () => {
+    const m = modelRef.current
+    if (!m) return
+
+    m.clear()
+    m.randomFill(0.32)
+
+    if (m.start) m.removeWall(m.start.r, m.start.c)
+    if (m.end) m.removeWall(m.end.r, m.end.c)
+
+    clearAnim()
+    viewRef.current.draw()
+    drawGridOverlay()
+  }
+
+  const clearMaze = () => {
+    const m = modelRef.current
+    if (!m) return
+    m.clear()
+    clearAnim()
+    viewRef.current.draw()
+  }
+
 
   // Node utilities
   const addNode = () => viewRef.current.addNode?.()

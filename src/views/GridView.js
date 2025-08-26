@@ -23,9 +23,10 @@ export default class GridView {
   draw() {
     const { ctx, model: m, opt: o } = this
 
+    const { width, height } = this.canvas
+    ctx.clearRect(0, 0, width, height)
+    ctx.strokeStyle = this.opt.gridColor || 'rgba(148,163,184,.28)';
 
-
-ctx.strokeStyle = this.opt.gridColor || 'rgba(148,163,184,.28)'; 
     ctx.lineWidth = 1
     ctx.beginPath()
     for (let r = 0; r <= m.rows; r++) {
