@@ -68,6 +68,12 @@ export default function App() {
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
 
+  useEffect(() => {
+    if (visual !== 'maze') return;
+    viewRef.current?.draw?.();
+    drawGridOverlay();
+  }, [showDetails]);
+
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const canvasRef = useRef(null)
@@ -240,6 +246,9 @@ export default function App() {
         animRef.current.path = res.path
         animRef.current.branches = (res.branches || []).map(p => ({ path: p, pos: 0 }))
         animRef.current.pos = 0
+
+        viewRef.current.draw();
+        drawGridOverlay();
       }
     } else {
       // Node mode path will be computed in play handler if needed
@@ -387,10 +396,12 @@ export default function App() {
 
       <main>
         {/* Settings Panel */}
-        <div id="settingsPanel" className={settingsOpen && visual === 'maze' ? 'visible' : ''}>
+        <div id="settingsPanel" className={visual === 'maze' ? 'visible' : ''}>
+          
           <button id="settingsToggle" onClick={() => setSettingsOpen(v => !v)}>
             {settingsOpen ? 'Settings ▼' : 'Settings ▲'}
           </button>
+
           <div id="settingsBox" className={'settingsBox ' + (settingsOpen ? 'visible' : '')}>
             <label>Rows <input id="rowsInput" type="number" min="5" max="100" value={rows} onChange={e => setRows(Number(e.target.value)||19)} /></label>
             <label>Cols <input id="colsInput" type="number" min="5" max="100" value={cols} onChange={e => setCols(Number(e.target.value)||22)} /></label>

@@ -72,6 +72,11 @@ canvas {
 
 #settingsPanel.visible { display: flex; }
 
+#settingsPanel { z-index: 2; }
+@media (max-width: 1100px) {
+  #settingsPanel { left: 0; }   
+}
+
 #settingsToggle { cursor: pointer; }
 
 .settingsBox {

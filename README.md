@@ -1,49 +1,38 @@
-# Shortest-Path Visualizer (React)
+# 🔍 Shortest-Path Visualizer (React)
 
-A React + Vite rewrite of your shortest‑path visualizer with two modes:
+An interactive React + Vite app that lets you **see shortest-path algorithms in action**.  
+It’s built to help you learn how classic algorithms explore and solve paths step by step.
 
-- **Maze (grid):** A*, Dijkstra, Bellman‑Ford, Floyd‑Warshall (unit weights). Paint walls, drag Start/Goal, animate path + branches.
-- **Nodes (graph):** Create nodes and weighted directed edges, set Start/Goal by dropping markers onto nodes, then animate Dijkstra on the node graph.
+## 🚀 What You’ll See
 
-## Tech
+The app has **two modes**, each with its own experience:
 
-- React 18 + Vite
-- Plain Canvas 2D (no extra libs)
-- Your original algorithm and drawing logic, adapted into modules and wired via React hooks
+- **🧩 Maze Mode (grid)**
+  - Choose an algorithm: **A\***, **Dijkstra**, **Bellman–Ford**, or **Floyd–Warshall**
+  - Paint walls by dragging, or generate a random maze
+  - Drag **Start** and **Goal** markers anywhere
+  - Watch the algorithm animate as it searches:
+    - The main path is traced with a moving blue circle
+    - Explored side-branches appear in gray/orange if details are enabled
 
-## Install & Run
+- **🔗 Nodes Mode (graph)**
+  - Add draggable nodes on the canvas
+  - Create or remove **directed weighted edges** (double-click an edge to edit its weight)
+  - Drop Start/Goal markers onto nodes
+  - Run **Dijkstra** on the graph and watch the glowing pulse animate along the path
 
-```bash
-npm i
-npm run dev
-```
+## 🛠 Tech Behind It
 
-Open the printed local URL.
+- **React 18 + Vite** for a modern, fast dev experience
+- **Plain Canvas 2D** (no extra libs) for rendering
+- Classic algorithms implemented directly:
+  - A\*, Dijkstra, Bellman-Ford, Floyd-Warshall
+- Built for both **education** and **visual clarity**
 
-## Build
+## 📌 Notes
 
-```bash
-npm run build
-npm run preview  
-```
+- **Maze mode** uses unit weights; Bellman–Ford and Floyd–Warshall are included for demonstration but are slower on larger grids.
+- **Nodes mode** is great for experimenting with weighted directed graphs interactively.
+- Settings (rows/cols/cell size, “show details”) apply only to Maze mode. Switching modes resets the current model.
 
-## Deploy (GitHub Pages)
-
-1. Create a new repo on GitHub and push this project.
-2. If deploying to `https://USERNAME.github.io/REPO/`, set the `base` in `vite.config.js` to `/REPO/`.
-3. Add the workflow below as `.github/workflows/gh-pages.yml` (already included).
-
-On push to `main`, it builds and publishes `dist/` to GitHub Pages.
-
-## Deploy (Netlify / Vercel)
-
-- **Netlify:** Drag‑and‑drop the `dist/` folder or connect the repo; build command `npm run build`, publish directory `dist`.
-- **Vercel:** Import the repo; framework: Vite; build command `npm run build`, output `dist`.
-
-## Notes & Improvements
-
-- Bellman‑Ford and Floyd‑Warshall are primarily for teaching here (grid has non‑negative unit edges). For performance on large grids, prefer Dijkstra / A*.
-- The Node mode exposes add/remove edge/node tools, and weight editing on double‑click.
-- Settings (rows/cols/cell) apply to Maze mode; switching visual modes resets the underlying model.
-
-Enjoy!
+👉 With this visualizer, learners can **interactively explore how algorithms think**—not just the final path, but the journey they take to find it.
