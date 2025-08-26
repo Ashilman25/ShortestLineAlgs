@@ -67,6 +67,24 @@ export default function App() {
   const [cell, setCell]     = useState(30)
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
+  const [theme, setTheme]   = useState('dark')
+
+  useEffect(() => {
+    document.body.classList.remove('theme-light', 'theme-dark')
+    document.body.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light')
+
+    if (visual === 'maze' && viewRef.current) {
+      const style = getComputedStyle(document.body)
+      const grid = style.getPropertyValue('--grid-lines').trim()|| (theme === 'dark' ? 'rgba(148,163,184,.28)' : 'rgba(229,231,235,.8)')
+      const wall = style.getPropertyValue('--wall').trim() || (theme === 'dark' ? '#334155' : '#0f172a')
+
+      viewRef.current.opt.gridColor = grid
+      viewRef.current.opt.wallColor = wall
+      viewRef.current.opt.bgColor = null
+      viewRef.current.draw()
+      drawGridOverlay()
+    }
+  }, [theme, visual])
 
   useEffect(() => {
     if (visual !== 'maze') return;
@@ -96,9 +114,21 @@ export default function App() {
 
     if (visual === 'maze') {
       modelRef.current = new GridModel(rows, cols)
-      viewRef.current  = new GridView(canvas, modelRef.current, { cellSize: cell })
+      const style = getComputedStyle(document.body)
+      const grid = style.getPropertyValue('--grid-lines').trim() || (theme==='dark' ? 'rgba(148,163,184,.28)' : 'rgba(229,231,235,.8)');
+      const wall = style.getPropertyValue('--wall').trim() || (theme==='dark' ? '#334155' : '#0f172a');
+
+
+      viewRef.current = new GridView(canvas, modelRef.current, {
+        cellSize: cell,
+        bgColor: null,
+        gridColor: grid,
+        wallColor: wall
+      })
+
       viewRef.current.draw()
       resetAnim()
+
     } else {
       modelRef.current = new NodeModel()
       viewRef.current  = new NodeView(canvas, modelRef.current)
@@ -205,36 +235,45 @@ export default function App() {
     const ctx = v.ctx
     const cs = v.opt.cellSize
     ctx.save()
-    // draw breadcrumb
-    ctx.fillStyle = '#000'
+
+    // breadcrumbs (visited on main path so far)
+    ctx.fillStyle = 'rgba(17,24,39,0.7)' // slate-900, 70%
     for (let i = 0; i <= animRef.current.pos; i++) {
       const { r, c } = animRef.current.path[i]
-      ctx.fillRect(c * cs + cs * .3, r * cs + cs * .3, cs * .2, cs * .2)
+      ctx.fillRect(c * cs + cs * .32, r * cs + cs * .32, cs * .18, cs * .18)
     }
-    // moving dot
+
+    // moving dot (main path head)
     const { r, c } = animRef.current.path[animRef.current.pos]
-    ctx.fillStyle = '#03f'
-    ctx.beginPath(); ctx.arc(c * cs + cs/2, r * cs + cs/2, cs * .35, 0, Math.PI*2); ctx.fill()
+    ctx.fillStyle = '#2563eb' // blue-600
+    ctx.beginPath()
+    ctx.arc(c * cs + cs/2, r * cs + cs/2, cs * .34, 0, Math.PI*2)
+    ctx.fill()
 
     if (showDetails) {
-      ctx.fillStyle = 'rgba(128,128,128,0.35)'
+      // alternative branches
       const onMain = new Set(animRef.current.path.map(({ r, c }) => `${r},${c}`))
+      ctx.fillStyle = 'rgba(100,116,139,.35)' // slate-500, 35%
       for (const b of animRef.current.branches) {
         for (let i = 0; i <= b.pos; i++) {
           const { r: br, c: bc } = b.path[i]
           if (onMain.has(`${br},${bc}`)) continue
-          ctx.fillRect(bc * cs + cs * .3, br * cs + cs * .3, cs * .4, cs * .4)
+          ctx.fillRect(bc * cs + cs * .28, br * cs + cs * .28, cs * .44, cs * .44)
         }
+        // branch frontier
         if (b.pos < b.path.length - 1) {
           const { r: br, c: bc } = b.path[b.pos]
           if (!onMain.has(`${br},${bc}`)) {
-            ctx.fillStyle = 'rgba(252,144,3,0.4)'
-            ctx.beginPath(); ctx.arc(bc * cs + cs/2, br * cs + cs/2, cs * .2, 0, Math.PI*2); ctx.fill()
-            ctx.fillStyle = 'rgba(128,128,128,0.35)'
+            ctx.fillStyle = 'rgba(252,146,31,.45)' // orange-ish glow
+            ctx.beginPath()
+            ctx.arc(bc * cs + cs/2, br * cs + cs/2, cs * .20, 0, Math.PI*2)
+            ctx.fill()
+            ctx.fillStyle = 'rgba(100,116,139,.35)'
           }
         }
       }
     }
+
     ctx.restore()
   }
 
@@ -342,6 +381,17 @@ export default function App() {
       <header>
         <h1>Shortest-Path Algorithms (React MVP)</h1>
 
+        <div className="themeToggle">
+            <button
+              className="iconBtn"
+              onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              {theme === 'dark' ? '☀︎' : '☾'}
+            </button>
+        </div>
+
         <div className="controls">
           <label>Visual:&nbsp;
             <select value={visual} onChange={e => setVisual(e.target.value)}>
@@ -359,7 +409,7 @@ export default function App() {
             </select>
           </label>
 
-          <button onClick={handlePlay}>Play</button>
+          <button className="primary" onClick={handlePlay}>Play</button>
           <button onClick={handlePause}>Pause</button>
           <button onClick={handleStep}>Step</button>
           <button onClick={handleReset}>Reset</button>

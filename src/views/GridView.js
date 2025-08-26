@@ -4,7 +4,15 @@ export default class GridView {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
     this.model = model
-    this.opt = { cellSize: 30, bgColor: '#fff', gridColor: '#aaa', wallColor: '#444', ...opt }
+
+    this.opt = {
+      cellSize: 30,
+      bgColor: null,
+      gridColor: '#e5e7eb',
+      wallColor: '#0f172a',
+      ...opt
+    }
+
     this._setupCanvas()
   }
   resize(cellSize) {
@@ -14,10 +22,10 @@ export default class GridView {
   }
   draw() {
     const { ctx, model: m, opt: o } = this
-    ctx.fillStyle = o.bgColor
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
 
-    ctx.strokeStyle = o.gridColor
+
+
+ctx.strokeStyle = this.opt.gridColor || 'rgba(148,163,184,.28)'; 
     ctx.lineWidth = 1
     ctx.beginPath()
     for (let r = 0; r <= m.rows; r++) {
@@ -37,13 +45,23 @@ export default class GridView {
     }
 
     if (m.start) {
-      ctx.fillStyle = '#0a0'
-      ctx.fillRect(m.start.c * o.cellSize + 1, m.start.r * o.cellSize + 1, o.cellSize - 1, o.cellSize - 1)
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(m.start.c * o.cellSize + 1, m.start.r * o.cellSize + 1, o.cellSize - 1, o.cellSize - 1);
+      ctx.strokeStyle = 'rgba(22,163,74,.55)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(m.start.c * o.cellSize + 1.5, m.start.r * o.cellSize + 1.5, o.cellSize - 3, o.cellSize - 3);
     }
     if (m.end) {
-      ctx.fillStyle = '#a00'
-      ctx.fillRect(m.end.c * o.cellSize + 1, m.end.r * o.cellSize + 1, o.cellSize - 1, o.cellSize - 1)
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(m.end.c * o.cellSize + 1, m.end.r * o.cellSize + 1, o.cellSize - 1, o.cellSize - 1);
+      ctx.strokeStyle = 'rgba(239,68,68,.55)';
+      
+      ctx.lineWidth = 2;
+      ctx.strokeRect(m.end.c * o.cellSize + 1.5, m.end.r * o.cellSize + 1.5, o.cellSize - 3, o.cellSize - 3);
     }
+
+
+
   }
   cssToCell(xCss, yCss) {
     const { cellSize } = this.opt

@@ -1,150 +1,288 @@
 :root {
-  --panel-w: 260px;
+  /* Palette */
+  --bg: #f7f7f9;
+  --card: #ffffff;
+  --text: #0f172a;         /* slate-900 */
+  --muted: #64748b;        /* slate-500 */
+  --border: #e5e7eb;       /* gray-200 */
+  --ring: #93c5fd;         /* sky-300 */
+  --accent: #2563eb;       /* blue-600 */
+
+  --green: #16a34a;        /* start */
+  --red: #ef4444;          /* goal */
+  --amber: #f59e0b;        /* current node ring */
+
+  /* Surfaces & depth */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
+  --shadow-lg: 0 14px 40px rgba(15, 23, 42, .10);
+
+  --panel-w: 280px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220;
+    --card: #0e1726;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --border: #1f2937;
+    --ring: #60a5fa;
+    --accent: #60a5fa;
+
+    --green: #22c55e;
+    --red: #f43f5e;
+    --amber: #fbbf24;
+  }
 }
 
 * { box-sizing: border-box; }
+html, body { height: 100%; }
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: #fafafa;
-  color: #111;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  color: var(--text);
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(37,99,235,0.06), transparent 60%),
+    radial-gradient(1000px 600px at 110% 10%, rgba(34,197,94,0.06), transparent 60%),
+    var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
 }
 
+/* ----- Layout containers -------------------------------------------------- */
 header {
-  width: 900px;
-  max-width: calc(100% - 2rem);
-  margin: 1rem 0 .5rem;
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
+  width: 100%;
+  max-width: 1100px;
+  padding: 1.25rem 1.25rem 0.75rem;
+  position: relative;
 }
 
-h1 { margin: 0; font-size: 1.4rem; }
+h1 {
+  margin: 0 0 .75rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
 
+/* Toolbar / controls card */
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius);
+  padding: .75rem;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: .5rem .5rem;
   align-items: center;
 }
 
-.controls select, .controls button, .controls input[type="range"] {
-  padding: .35rem .5rem;
-  font-size: .95rem;
+@media (max-width: 960px) {
+  .controls { grid-template-columns: 1fr 1fr; }
 }
 
-.controls .modePanel { display: none; gap: .5rem; }
+.controls label {
+  color: var(--muted);
+  font-size: .9rem;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+/* Grouping for mode-specific toolbars */
+.controls .modePanel {
+  display: none;
+  gap: .5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
 .controls .modePanel.visible { display: flex; }
 
+/* Inputs --------------------------------------------------------------- */
+select, input[type="number"], input[type="text"] {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: .45rem .6rem;
+  border-radius: 10px;
+  font-size: .95rem;
+  outline: none;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+select:focus, input[type="number"]:focus, input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
+}
+
+/* Buttons -------------------------------------------------------------- */
+button {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: .45rem .7rem;
+  border-radius: 10px;
+  font-size: .95rem;
+  cursor: pointer;
+  transition: transform .05s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  box-shadow: var(--shadow-sm);
+}
+button:hover { border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Accent action look for Play / primary actions */
+button.primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--card)), var(--card));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+/* Active toggles */
+.modePanel button.active { background: color-mix(in srgb, var(--accent) 10%, var(--card)); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+#removeEdge.active { background: color-mix(in srgb, #ef4444 12%, var(--card)); }
+#deleteNode.active { background: color-mix(in srgb, #ef4444 8%, var(--card)); }
+
+/* Range (speed) -------------------------------------------------------- */
+input[type="range"] {
+  width: 160px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 999px;
+  appearance: none;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px; height: 14px; border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--card);
+}
+
+/* Canvas / stage ------------------------------------------------------- */
 main {
   position: relative;
-  width: 900px;
-  max-width: calc(100% - 2rem);
+  width: 100%;
+  max-width: 1100px;
+  padding: 1rem 1.25rem 2rem;
 }
 
 .canvasWrap {
   position: relative;
   display: flex;
   align-items: flex-start;
+  gap: .75rem;
 }
 
 canvas {
-  border: 1px solid #555;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
   cursor: crosshair;
 }
 
-#metrics { margin-top: .5rem; font-size: .9rem; }
-
+/* Settings panel ------------------------------------------------------- */
 #settingsPanel {
   position: absolute;
-  left: -160px;
-  top: 0;
+  left: -180px; /* docks left of canvas on wide screens */
+  top: .25rem;
   display: none;
   flex-direction: column;
   align-items: stretch;
-  gap: .25rem;
-  font-size: .85rem;
+  gap: .5rem;
+  font-size: .9rem;
 }
-
 #settingsPanel.visible { display: flex; }
+#settingsPanel { z-index: 3; }
 
-#settingsPanel { z-index: 2; }
-@media (max-width: 1100px) {
-  #settingsPanel { left: 0; }   
+@media (max-width: 1200px) {
+  #settingsPanel { left: 0; top: -3.75rem; position: relative; }
 }
 
-#settingsToggle { cursor: pointer; }
+#settingsToggle {
+  border-radius: 999px;
+  padding: .35rem .75rem;
+  width: fit-content;
+}
 
 .settingsBox {
   display: none;
   flex-direction: column;
-  gap: .25rem;
-  padding: .5rem;
-  background: #f3f3f3;
-  border: 1px solid #888;
-  border-radius: .25rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  gap: .5rem;
+  padding: .75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
-
 .settingsBox.visible { display: flex; }
 
-#rowsInput, #colsInput, #cellInput {
-  width: 3rem;
-}
+#rowsInput, #colsInput, #cellInput { width: 3.25rem; text-align: right; }
+.settingsBox label { display: flex; justify-content: space-between; gap: .75rem; align-items: center; }
 
-.settingsBox label {
-  display: flex;
-  justify-content: space-between;
-  gap: .5rem;
-}
-
-.modePanel button.active { background: #ffd; }
-#removeEdge.active { background: #faa; }
-#deleteNode.active { background: #fcc; }
-
+/* Marker panel --------------------------------------------------------- */
 .markerPanel {
   display: flex;
   gap: .5rem;
   align-items: center;
+  justify-content: flex-end;
 }
 .marker {
   user-select: none;
   cursor: grab;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: .25rem;
-  font-size: .9rem;
+  gap: .35rem;
+  font-size: .95rem;
+  padding: .3rem .5rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--card);
 }
-.marker .box { width: 20px; height: 20px; border: 1px solid #000; }
+.marker .box {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
 .marker.used .box { opacity: .35; }
 .marker.used { cursor: pointer; }
 
-/* Info panel */
+/* Info panel ----------------------------------------------------------- */
 #infoPanel{
   position:absolute;
   right: calc(-1 * var(--panel-w) - .75rem);
   top: 0;
   width: var(--panel-w);
-  padding: .5rem .75rem;
-  background: #f8f8f8;
-  border-left: 1px solid #bbb;
-  font-size: .85rem;
-  line-height: 1.3;
+  padding: .75rem .9rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius);
+  font-size: .9rem;
+  line-height: 1.45;
   overflow: auto;
   height: 100%;
 }
-#infoPanel h2{ margin:.25rem 0 .5rem; font-size:1.1rem; }
-#infoPanel h3{ margin:.5rem 0 .25rem; font-size:.9rem; }
+#infoPanel h2{ margin:.25rem 0 .5rem; font-size:1.05rem; }
+#infoPanel h3{ margin:.5rem 0 .35rem; font-size:.95rem; color: var(--muted); }
 #infoPanel pre{
   white-space: pre-wrap;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: .25rem;
-  font-size: .8rem;
+  background: color-mix(in srgb, var(--card), transparent 8%);
+  border: 1px dashed var(--border);
+  padding: .5rem;
+  border-radius: 10px;
+  font-size: .85rem;
   overflow: auto;
 }
 #infoPanel ul.bullet {
@@ -152,4 +290,58 @@ canvas {
   margin: 0;
   list-style-type: disc;
 }
-#infoPanel ul.bullet li { margin: .15rem 0; }
+#infoPanel ul.bullet li { margin: .15rem 0; color: var(--text); }
+
+/* Metrics (placeholder) */
+#metrics { margin-top: .75rem; font-size: .9rem; color: var(--muted); }
+
+
+/* ---- explicit theme overrides via body class ---- */
+body.theme-light {
+  --bg: #f7f7f9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --ring: #93c5fd;
+  --accent: #2563eb;
+
+  /* canvas-friendly */
+  --grid-lines: rgba(229,231,235,.8);  /* light subtle grid */
+  --wall: #0f172a;                     /* slate-900 */
+}
+
+body.theme-dark {
+  --bg: #0b1220;
+  --card: #0e1726;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #1f2937;
+  --ring: #60a5fa;
+  --accent: #60a5fa;
+
+  /* canvas-friendly */
+  --grid-lines: rgba(148,163,184,.28); /* slate-400 @ ~28% */
+  --wall: #334155;                     /* slate-700 for contrast on dark */
+}
+
+/* ---- theme toggle button (top-right) ---- */
+.themeToggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 5;
+}
+.themeToggle .iconBtn {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  cursor: pointer;
+}
+.themeToggle .iconBtn:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
