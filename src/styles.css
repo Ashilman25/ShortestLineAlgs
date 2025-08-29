@@ -82,6 +82,26 @@ h1 {
   align-items: center;
 }
 
+/* Pause/Step group with Reset spanning both (maze only) */
+.psControlsGrid {
+  display: contents; /* allow inner buttons to participate in main grid by default */
+}
+.maze .psControlsGrid {
+  display: grid;
+  grid-template-columns: auto auto; /* Pause | Step */
+  gap: .5rem;
+  grid-column: 3 / 6; /* occupy alg col (2) already used; place starting at play (3)? adjust if needed */
+  align-items: center;
+}
+.maze .psControlsGrid > button { width: 100%; }
+.maze .psControlsGrid .resetSpan {
+  grid-column: 1 / 3; /* span pause+step widths */
+}
+@media (max-width:960px){
+  .maze .psControlsGrid { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+  .maze .psControlsGrid .resetSpan { grid-column: 1 / -1; }
+}
+
 @media (max-width: 960px) {
   .controls { grid-template-columns: 1fr 1fr; }
 }

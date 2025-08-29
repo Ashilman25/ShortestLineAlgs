@@ -20,42 +20,102 @@ const ALG = {
 const INFO = {
   dijkstra: {
     title: 'Dijkstra',
-    req: 'Shortest path on non‑negative weighted graphs.',
-    desc: 'Extracts the minimum tentative distance via a priority queue, relaxes neighbours, repeats until the goal is reached.',
-    code: `dist[start] = 0
-pq = { (0,start) }
-while pq:
-  d,u = pop_min(pq)
-  if u == goal: break
-  for each edge (u,v,w):
-    if d+w < dist[v]:
-      dist[v] = d+w
-      prev[v] = u
-      push(pq,(dist[v],v))`
+    req: `Non‑negative edge weights only
+Worst‑case time: O(E log V) with binary heap (O(V^2) array)
+Finds single‑source shortest paths & parent tree`,
+    desc: 'Maintains a min‑priority queue of frontier vertices by tentative distance; repeatedly extracts the closest, relaxes outgoing edges, and stops when the goal is settled.',
+    code: `function Dijkstra(Graph, start, goal):
+  for each vertex v:
+    dist[v] := +infinity
+    prev[v] := undefined
+  dist[start] := 0
+  pq := min-priority-queue keyed by dist
+  pq.insert(start)
+
+  while pq not empty:
+    u := pq.extractMin()
+    if u == goal: break        # goal distance finalized
+    for each edge (u, v, w):    # w = weight(u->v)
+      alt := dist[u] + w
+      if alt < dist[v]:
+        dist[v] := alt
+        prev[v] := u
+        if v in pq: pq.decreaseKey(v, alt) else pq.insert(v)
+
+  return dist, prev  # prev encodes shortest path tree`
   },
   astar: {
     title: 'A*',
-    req: 'Heuristic h(v) that never over‑estimates to goal.',
-    desc: 'Like Dijkstra but pops min (g+h). Optimal when h is admissible.',
-    code: `f[v] = g[v] + h[v]
-open = { (f[start], start) }`
+    req: `Requires admissible (and ideally consistent) heuristic h(v) ≥ 0
+Worst‑case time: O(E) ~ Dijkstra when h ≡ 0
+Explores far fewer nodes when h close to true distance`,
+    desc: 'Extends Dijkstra by prioritizing nodes on estimated total cost f = g + h; optimal when h never overestimates (admissible) and is consistent.',
+    code: `function AStar(Graph, start, goal, h):
+  for each v: g[v] := +infinity; f[v] := +infinity; prev[v] := undefined
+  g[start] := 0
+  f[start] := h(start)
+  open := min-priority-queue ordered by f
+  open.insert(start)
+  closed := empty set
+
+  while open not empty:
+    u := open.extractMin()
+    if u == goal: return reconstruct_path(prev, goal)
+    closed.add(u)
+    for each edge (u, v, w):
+      if v in closed: continue
+      tentative := g[u] + w
+      if tentative < g[v]:
+        g[v] := tentative
+        f[v] := g[v] + h(v)
+        prev[v] := u
+        if v in open: open.decreaseKey(v, f[v]) else open.insert(v)
+
+  return failure`
   },
   bellmanFord: {
     title: 'Bellman‑Ford',
-    req: 'Graphs with negative edges but no negative cycles.',
-    desc: '|V|-1 passes relaxing all edges; detects negative cycle on pass |V|.',
-    code: `for i in 1..|V|-1:
-  for each edge (u,v,w):
-    dist[v] = min(dist[v], dist[u]+w)`
+    req: `Handles negative edge weights (no negative cycles reachable)
+Worst‑case time: O(V * E); Space: O(V)
+Detects negative cycle on extra relaxation pass`,
+    desc: 'Performs |V|−1 passes relaxing every edge; a further pass that can still relax indicates a negative cycle.',
+    code: `function BellmanFord(Graph, start):
+  for each vertex v: dist[v] := +infinity; prev[v] := undefined
+  dist[start] := 0
+
+  for i from 1 to |V|-1:
+    updated := false
+    for each edge (u, v, w):
+      if dist[u] + w < dist[v]:
+        dist[v] := dist[u] + w
+        prev[v] := u
+        updated := true
+    if not updated: break   # early exit
+
+  # Negative cycle check
+  for each edge (u, v, w):
+    if dist[u] + w < dist[v]:
+      return 'NEGATIVE CYCLE'
+
+  return dist, prev`
   },
   floydWarshall: {
     title: 'Floyd‑Warshall',
-    req: 'All‑pairs shortest path, O(V³).',
-    desc: 'Dynamic programming over intermediate vertices.',
-    code: `for k in V:
-  for i in V:
-    for j in V:
-      d[i][j] = min(d[i][j], d[i][k]+d[k][j])`
+    req: `All‑pairs shortest paths; works with negative edges
+Worst‑case time: O(V^3); Space: O(V^2)
+Cannot handle negative cycles (detectable if d[i][i] < 0)`,
+    desc: 'Dynamic programming that incrementally allows each vertex as an intermediate, relaxing every pair (i,j) through k.',
+    code: `function FloydWarshall(dist):  # dist is VxV matrix (∞ if no edge, 0 on diagonal)
+  for k in 0..V-1:
+    for i in 0..V-1:
+      for j in 0..V-1:
+        if dist[i][k] + dist[k][j] < dist[i][j]:
+          dist[i][j] := dist[i][k] + dist[k][j]
+
+  # Optional negative cycle detection
+  for v in 0..V-1:
+    if dist[v][v] < 0: return 'NEGATIVE CYCLE'
+  return dist`
   }
 }
 
@@ -68,6 +128,8 @@ export default function App() {
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
   const [theme, setTheme]   = useState('light')
+
+  
 
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-dark')
@@ -400,7 +462,7 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>Shortest-Path Algorithms (React MVP)</h1>
+        <h1>Shortest Path Algorithms</h1>
 
         <div className="themeToggle">
             <button
@@ -433,7 +495,6 @@ export default function App() {
           <button className="primary" onClick={handlePlay}>Play</button>
           <button onClick={handlePause}>Pause</button>
           <button onClick={handleStep}>Step</button>
-          <button onClick={handleReset}>Reset</button>
 
           <label>Speed:&nbsp;
             <input type="range" min="10" max="500" value={speed} onChange={e => setSpeed(e.target.value)} />
@@ -462,7 +523,11 @@ export default function App() {
               <span className="box" style={{ background: 'rgb(254, 43, 43)' }}></span>Goal
             </div>
           </div>
+          
+          <button className="resetFull" onClick={handleReset}>Reset</button>
+
         </div>
+        
       </header>
 
       <main>
