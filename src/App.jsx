@@ -128,6 +128,7 @@ export default function App() {
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
   const [theme, setTheme]   = useState('light')
+  const [renderScale, setRenderScale] = useState(1) //1 to 3
 
   
 
@@ -161,7 +162,15 @@ export default function App() {
   const viewRef   = useRef(null)  // GridView | NodeView
 
   // Grid animation state
-  const animRef = useRef({ path: [], pos: 0, branches: [], timer: null, playing: false })
+  const animRef = useRef({
+    path: [], pos: 0, branches: [],
+    timer: null,      
+    playing: false,
+    rafId: null,
+    lastTs: null,
+    acc: 0,
+    msPerStep: 120
+  })
 
   // Setup model+view when visual/rows/cols/cell changes
   useEffect(() => {
@@ -185,7 +194,8 @@ export default function App() {
         cellSize: cell,
         bgColor: null,
         gridColor: grid,
-        wallColor: wall
+        wallColor: wall,
+        renderScale
       })
 
       viewRef.current.draw()
@@ -222,7 +232,7 @@ export default function App() {
       canvas.removeEventListener('dragover', onDragOver)
       canvas.removeEventListener('drop', onDrop)
     }
-  }, [visual, rows, cols, cell])
+  }, [visual, rows, cols, cell, renderScale])
 
   // Painting for maze mode
   useEffect(() => {
@@ -277,12 +287,19 @@ export default function App() {
   function clearAnim() {
     const a = animRef.current
     if (a.timer) clearInterval(a.timer)
-    animRef.current = { path: [], pos: 0, branches: [], timer: null, playing: false }
+    if (a.rafId) cancelAnimationFrame(a.rafId)
+    animRef.current = {
+      path: [], pos: 0, branches: [],
+      timer: null, playing: false,
+      rafId: null, lastTs: null, acc: 0, msPerStep: Number(speed)
+    }
   }
+
   function resetAnim() {
     clearAnim()
     viewRef.current?.draw?.()
   }
+
   function stepAnim() {
     const a = animRef.current
     if (!a.path.length) return
@@ -291,53 +308,101 @@ export default function App() {
     viewRef.current.draw()
     drawGridOverlay()
   }
-  function drawGridOverlay() {
-    const v = viewRef.current
-    if (!v?.ctx || !animRef.current.path.length) return
-    const ctx = v.ctx
-    const cs = v.opt.cellSize
-    ctx.save()
+  function drawGridOverlay(frac = 0) {
+  const v = viewRef.current
+  if (!v?.ctx || !animRef.current.path.length) return
+  const ctx = v.ctx
+  const cs = v.opt.cellSize
 
-    // breadcrumbs (visited on main path so far)
-    ctx.fillStyle = 'rgba(17,24,39,0.7)' // slate-900, 70%
-    for (let i = 0; i <= animRef.current.pos; i++) {
-      const { r, c } = animRef.current.path[i]
-      ctx.fillRect(c * cs + cs * .32, r * cs + cs * .32, cs * .18, cs * .18)
+  // Small ease for nicer feel
+  const smooth = (t) => t * t * (3 - 2 * t)
+  const t = Math.min(Math.max(frac, 0), 1)
+  const f = smooth(t)
+
+  ctx.save()
+
+  // --- MAIN PATH ---
+  // breadcrumbs (visited on main path so far)
+  ctx.fillStyle = 'rgba(17,24,39,0.7)'
+
+  
+  for (let i = 0; i <= animRef.current.pos; i++) {
+    const { r, c } = animRef.current.path[i]
+    ctx.fillRect(c * cs + cs * .32, r * cs + cs * .32, cs * .18, cs * .18)
+  }
+
+  // moving dot (interpolated between pos and pos+1)
+  const a = animRef.current
+  const p0 = a.path[a.pos]
+  const p1 = a.path[Math.min(a.pos + 1, a.path.length - 1)]
+  const headX = (p0.c + (p1.c - p0.c) * f) * cs + cs / 2
+  const headY = (p0.r + (p1.r - p0.r) * f) * cs + cs / 2
+
+  ctx.fillStyle = '#2563eb'
+  ctx.beginPath()
+  ctx.arc(headX, headY, cs * .34, 0, Math.PI * 2)
+  ctx.fill()
+
+  // --- BRANCHES (smooth) ---
+  if (showDetails) {
+    // treat squares as centered shapes for clean interpolation
+    const onMain = new Set(a.path.map(({ r, c }) => `${r},${c}`))
+
+    const drawCenteredSquare = (cx, cy, size) => {
+      const half = size / 2
+      ctx.fillRect(cx - half, cy - half, size, size)
     }
 
-    // moving dot (main path head)
-    const { r, c } = animRef.current.path[animRef.current.pos]
-    ctx.fillStyle = '#2563eb' // blue-600
-    ctx.beginPath()
-    ctx.arc(c * cs + cs/2, r * cs + cs/2, cs * .34, 0, Math.PI*2)
-    ctx.fill()
+    const VISITED_SIZE = cs * .44
+    const FRONTIER_SIZE = cs * .44
 
-    if (showDetails) {
-      // alternative branches
-      const onMain = new Set(animRef.current.path.map(({ r, c }) => `${r},${c}`))
-      ctx.fillStyle = 'rgba(100,116,139,.35)' // slate-500, 35%
-      for (const b of animRef.current.branches) {
-        for (let i = 0; i <= b.pos; i++) {
-          const { r: br, c: bc } = b.path[i]
-          if (onMain.has(`${br},${bc}`)) continue
-          ctx.fillRect(bc * cs + cs * .28, br * cs + cs * .28, cs * .44, cs * .44)
-        }
-        // branch frontier
-        if (b.pos < b.path.length - 1) {
-          const { r: br, c: bc } = b.path[b.pos]
-          if (!onMain.has(`${br},${bc}`)) {
-            ctx.fillStyle = 'rgba(252,146,31,.45)' // orange-ish glow
-            ctx.beginPath()
-            ctx.arc(bc * cs + cs/2, br * cs + cs/2, cs * .20, 0, Math.PI*2)
-            ctx.fill()
-            ctx.fillStyle = 'rgba(100,116,139,.35)'
-          }
+    // visited style
+    const visitedFill = 'rgba(100,116,139,.35)'       // slate-500 @ 35%
+    // frontier moving block (slightly stronger)
+    const frontierFill = 'rgba(100,116,139,.55)'
+
+    for (const b of a.branches) {
+      if (!b.path?.length) continue
+
+      // 1) Draw fully visited squares up to b.pos - 1
+      ctx.fillStyle = visitedFill
+      for (let i = 0; i < Math.min(b.pos, b.path.length); i++) {
+        const { r: br, c: bc } = b.path[i]
+        if (onMain.has(`${br},${bc}`)) continue
+        const cx = bc * cs + cs / 2
+        const cy = br * cs + cs / 2
+        drawCenteredSquare(cx, cy, VISITED_SIZE)
+      }
+
+      // 2) Interpolated frontier square between b.pos and b.pos+1
+      if (b.pos < b.path.length) {
+        const b0 = b.path[b.pos]
+        const b1 = b.path[Math.min(b.pos + 1, b.path.length - 1)]
+
+        // Skip if frontier is sitting on the main path cell
+        const tag0 = `${b0.r},${b0.c}`
+        if (!onMain.has(tag0)) {
+          const bx = (b0.c + (b1.c - b0.c) * f) * cs + cs / 2
+          const by = (b0.r + (b1.r - b0.r) * f) * cs + cs / 2
+
+          // slightly grow/shrink for life
+          const pulse = 1 + 0.06 * Math.sin(performance.now() / 180)
+          ctx.fillStyle = frontierFill
+          drawCenteredSquare(bx, by, FRONTIER_SIZE * pulse)
+
+          // 3) Interpolated frontier ring (orange glow)
+          ctx.fillStyle = 'rgba(252,146,31,.45)'
+          ctx.beginPath()
+          ctx.arc(bx, by, cs * .20, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
     }
-
-    ctx.restore()
   }
+
+  ctx.restore()
+}
+
 
   function computeIfNeeded() {
     if (visual === 'maze') {
@@ -356,45 +421,70 @@ export default function App() {
     }
   }
 
+  function startRAF() {
+    const a = animRef.current
+    if (a.playing) return
+    a.playing = true
+    a.lastTs = null
+    a.acc = 0
+    a.msPerStep = Number(speed)   // ms to move 1 cell
+
+    const tick = (ts) => {
+      if (!a.playing) return
+      if (a.lastTs == null) a.lastTs = ts
+      const dt = ts - a.lastTs
+      a.lastTs = ts
+      a.acc += dt
+
+      // advance whole cells as needed
+      while (a.acc >= a.msPerStep && a.pos < a.path.length - 1) {
+        a.acc -= a.msPerStep
+        a.pos++
+        for (const b of a.branches) if (b.pos < b.path.length - 1) b.pos++
+      }
+      const frac = Math.min(a.acc / a.msPerStep, 1) || 0
+
+      // draw frame
+      viewRef.current.draw()
+      drawGridOverlay(frac)
+
+      if (a.pos >= a.path.length - 1) { handlePause(); return }
+      a.rafId = requestAnimationFrame(tick)
+    }
+    a.rafId = requestAnimationFrame(tick)
+  }
+
   function handlePlay() {
     if (visual === 'maze') {
       computeIfNeeded()
-      const a = animRef.current
-      if (a.playing) return
-      a.playing = true
-      a.timer = setInterval(() => {
-        if (a.pos < a.path.length - 1) {
-          a.pos++
-          for (const b of a.branches) if (b.pos < b.path.length - 1) b.pos++
-          viewRef.current.draw(); drawGridOverlay()
-        } else {
-          handlePause()
-        }
-      }, Number(speed))
+      startRAF()
     } else {
-      // Node mode
       const view = viewRef.current
       if (!view.anim.path.length) {
         const path = dijkstraNodePath(modelRef.current)
         if (!path.length) { alert('No path'); return }
         view.startAnim(path)
       } else {
-        // resume
         view.anim.playing = true
         view._tick?.()
       }
     }
   }
+
+
   function handlePause() {
     if (visual === 'maze') {
-      const a = animRef.current
-      if (!a.playing) return
-      clearInterval(a.timer)
-      a.playing = false
-    } else {
-      viewRef.current.pauseAnim?.()
+        const a = animRef.current
+        if (!a.playing) return
+        a.playing = false
+        if (a.rafId) cancelAnimationFrame(a.rafId)
+        a.rafId = null
     }
   }
+
+  
+
+  
   function handleStep() {
     if (visual === 'maze') {
       computeIfNeeded()
@@ -491,6 +581,7 @@ export default function App() {
               <option value="floydWarshall">Floyd-Warshall</option>
             </select>
           </label>
+
 
           <button className="primary" onClick={handlePlay}>Play</button>
           <button onClick={handlePause}>Pause</button>
