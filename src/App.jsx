@@ -34,15 +34,15 @@ Finds single‑source shortest paths & parent tree`,
 
   while pq not empty:
     u := pq.extractMin()
-    if u == goal: break        # goal distance finalized
-    for each edge (u, v, w):    # w = weight(u->v)
+    if u == goal: break        
+    for each edge (u, v, w):    
       alt := dist[u] + w
       if alt < dist[v]:
         dist[v] := alt
         prev[v] := u
         if v in pq: pq.decreaseKey(v, alt) else pq.insert(v)
 
-  return dist, prev  # prev encodes shortest path tree`
+  return dist, prev  `
   },
   astar: {
     title: 'A*',
@@ -90,7 +90,7 @@ Detects negative cycle on extra relaxation pass`,
         dist[v] := dist[u] + w
         prev[v] := u
         updated := true
-    if not updated: break   # early exit
+    if not updated: break   
 
   # Negative cycle check
   for each edge (u, v, w):
@@ -105,7 +105,7 @@ Detects negative cycle on extra relaxation pass`,
 Worst‑case time: O(V^3); Space: O(V^2)
 Cannot handle negative cycles (detectable if d[i][i] < 0)`,
     desc: 'Dynamic programming that incrementally allows each vertex as an intermediate, relaxing every pair (i,j) through k.',
-    code: `function FloydWarshall(dist):  # dist is VxV matrix (∞ if no edge, 0 on diagonal)
+    code: `function FloydWarshall(dist):  
   for k in 0..V-1:
     for i in 0..V-1:
       for j in 0..V-1:
@@ -129,7 +129,7 @@ export default function App() {
   const [speed, setSpeed]   = useState(120)
   const [theme, setTheme]   = useState('light')
   const [renderScale, setRenderScale] = useState(1) //1 to 3
-
+  const [nodeUIMode, setNodeUIMode] = useState(null)
   
 
   useEffect(() => {
@@ -155,7 +155,22 @@ export default function App() {
     drawGridOverlay();
   }, [showDetails]);
 
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const press = (which) => setNodeUIMode(m => (m === which ? null : which))
+
+  // when you leave Nodes mode, clear any toggle
+  useEffect(() => { if (visual !== 'nodes') setNodeUIMode(null) }, [visual])
+
+  // reflect UI mode to NodeView flags
+  useEffect(() => {
+    const v = viewRef.current
+    if (!v) return
+    v.setEdgeMode?.(nodeUIMode === 'edge')
+    v.setDeleteEdgeMode?.(nodeUIMode === 'delEdge')
+    v.setDeleteNodeMode?.(nodeUIMode === 'delNode')
+  }, [nodeUIMode])
+
+
+  const [settingsOpen, setSettingsOpen] = useState(true)
 
   const canvasRef = useRef(null)
   const modelRef  = useRef(null)  // GridModel | NodeModel
@@ -322,8 +337,11 @@ export default function App() {
   ctx.save()
 
   // --- MAIN PATH ---
-  // breadcrumbs (visited on main path so far)
-  ctx.fillStyle = 'rgba(17,24,39,0.7)'
+  // breadcrumbs (visited on main path so far) – adapt color for dark mode visibility
+  const breadcrumbColor = theme === 'dark'
+    ? 'rgba(255,255,255,0.55)'   // light dots on dark background
+    : 'rgba(17,24,39,0.70)'      // dark dots on light background
+  ctx.fillStyle = breadcrumbColor
 
   
   for (let i = 0; i <= animRef.current.pos; i++) {
@@ -594,10 +612,35 @@ export default function App() {
           {/* Node controls */}
           <div className={"modePanel" + (visual === 'nodes' ? ' visible' : '')}>
             <button onClick={addNode}>Add node</button>
-            <button id="deleteNode" className={viewRef.current?._delNodeMode ? 'active' : ''} onClick={toggleDelNode}>Delete node</button>
-            <button id="addEdge" className={viewRef.current?._edgeMode ? 'active' : ''} onClick={toggleEdgeMode}>Add Edge</button>
-            <button id="removeEdge" className={viewRef.current?._delMode ? 'active' : ''} onClick={toggleDelEdge}>Remove Edge</button>
+
+            <button
+              id="addEdge"
+              className="toggle"
+              aria-pressed={nodeUIMode === 'edge'}
+              onClick={() => press('edge')}
+            >
+              Add Edge
+            </button>
+
+            <button
+              id="removeEdge"
+              className="toggle"
+              aria-pressed={nodeUIMode === 'delEdge'}
+              onClick={() => press('delEdge')}
+            >
+              Remove Edge
+            </button>
+
+            <button
+              id="deleteNode"
+              className="toggle"
+              aria-pressed={nodeUIMode === 'delNode'}
+              onClick={() => press('delNode')}
+            >
+              Delete node
+            </button>
           </div>
+
 
           {/* Maze controls */}
           <div className={"modePanel" + (visual === 'maze' ? ' visible' : '')}>
@@ -639,23 +682,31 @@ export default function App() {
 
         <div className="canvasWrap">
           <canvas ref={canvasRef} />
-          <aside id="infoPanel">
-            <h2>{info.title}</h2>
-            <section>
-              <h3>1 · Need to Know</h3>
-              <ul className="bullet">
-                {info.req.split('\n').map((line, i) => <li key={i}>{line.trim()}</li>)}
-              </ul>
-            </section>
-            <section>
-              <h3>2 · How it works</h3>
-              <div>{info.desc}</div>
-            </section>
-            <section>
-              <h3>3 · Pseudocode</h3>
-              <pre>{info.code}</pre>
-            </section>
+          <aside id="infoPanel" className="algoInfo">
+            <div className="infoHeader">
+              <h2>{info.title}</h2>
+            </div>
+
+            <div className="infoGrid">
+              <section className="need">
+                <h3>1 · Need to Know</h3>
+                <ul className="bullet">
+                  {info.req.split('\n').map((line, i) => <li key={i}>{line.trim()}</li>)}
+                </ul>
+              </section>
+
+              <section className="how">
+                <h3>2 · How it works</h3>
+                <div className="howBody">{info.desc}</div>
+              </section>
+
+              <section className="code">
+                <h3>3 · Pseudocode</h3>
+                <pre className="codeBlock">{info.code}</pre>
+              </section>
+            </div>
           </aside>
+
         </div>
 
         <div id="metrics"></div>
