@@ -10,6 +10,8 @@ import { aStarShortestPath } from './algorithms/astar.js'
 import { bellmanFordShortestPath } from './algorithms/bellmanford.js'
 import { floydWarsShortestPath } from './algorithms/floydwarshall.js'
 
+const TWO_COL_BP = 1360;
+
 const ALG = {
   dijkstra: dijShortestPath,
   astar: aStarShortestPath,
@@ -176,6 +178,44 @@ export default function App() {
   const modelRef  = useRef(null)  // GridModel | NodeModel
   const viewRef   = useRef(null)  // GridView | NodeView
 
+  const needRef = useRef(null) 
+  const howRef = useRef(null)
+
+    // Fit the text inside .need/.how by shrinking font-size (via CSS var) until it fits
+    function fitSection(sectionEl, contentSelector, {min=0.70, pad=4} = {}) {
+      if (!sectionEl) return
+      const content = sectionEl.querySelector(contentSelector)
+      const header  = sectionEl.querySelector('h3')
+      if (!content) return
+
+      // reset scale
+      sectionEl.style.setProperty('--fit-scale', '1')
+
+      const styles = getComputedStyle(sectionEl)
+      const pt = parseFloat(styles.paddingTop)  || 0
+      const pb = parseFloat(styles.paddingBottom) || 0
+
+      const available = sectionEl.clientHeight - (header?.offsetHeight || 0) - pt - pb - pad
+      if (available <= 0) return
+
+      // If it already fits, stop early
+      if (content.scrollHeight <= available) return
+
+      // Iteratively shrink to fit
+      let lo = min, hi = 1, best = min
+      for (let i = 0; i < 10; i++) {          // binary search ~10 steps
+        const mid = (lo + hi) / 2
+        sectionEl.style.setProperty('--fit-scale', String(mid))
+        // force reflow
+        // eslint-disable-next-line no-unused-expressions
+        content.offsetHeight
+
+        if (content.scrollHeight <= available) { best = mid; hi = mid } else { lo = mid }
+      }
+      sectionEl.style.setProperty('--fit-scale', String(best))
+    }
+
+
   // Grid animation state
   const animRef = useRef({
     path: [], pos: 0, branches: [],
@@ -186,6 +226,77 @@ export default function App() {
     acc: 0,
     msPerStep: 120
   })
+
+  // near other refs
+  const infoRef = useRef(null)
+
+  // keep the info panel from exceeding the canvas height
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const info   = infoRef.current
+    const wrap   = document.querySelector('.canvasWrap')
+    if (!canvas || !info || !wrap) return
+
+    const mqTwoCols = window.matchMedia(`(min-width: ${TWO_COL_BP + 1}px)`);
+
+    const runFits = () => {
+      if (wrap.classList.contains('stackInfo')) {
+        needRef.current?.style.setProperty('--fit-scale', '1')
+        howRef.current?.style.setProperty('--fit-scale', '1')
+        return
+      }
+      fitSection(needRef.current, 'ul.bullet')
+      fitSection(howRef.current,  '.howBody')
+    }
+
+    const check = () => {
+      wrap.classList.remove('splitInfo', 'stackInfo')
+      info.style.maxHeight = ''
+      info.style.height = ''                 // ✨ reset explicit height
+
+      if (!mqTwoCols.matches) { runFits(); return }
+
+      // Use the painted size (incl. borders) to match visually
+      const gridH = Math.round(canvas.getBoundingClientRect().height)
+
+      // ✨ hard-lock the panel height to the canvas while side-by-side
+      info.style.height    = gridH + 'px'
+      info.style.maxHeight = gridH + 'px'    // keep max consistent to avoid clamping
+
+      let overflow = info.scrollHeight > gridH
+      if (overflow) {
+        // Try split mode (code moves under canvas)
+        wrap.classList.add('splitInfo')
+        // Re-lock height after layout change
+        const gridH2 = Math.round(canvas.getBoundingClientRect().height)
+        info.style.height    = gridH2 + 'px' // ✨ lock again
+        info.style.maxHeight = gridH2 + 'px'
+
+        void info.offsetHeight
+        overflow = info.scrollHeight > gridH2
+        if (overflow) {
+          // Final fallback: stack everything; let panel grow naturally
+          wrap.classList.remove('splitInfo')
+          wrap.classList.add('stackInfo')
+          info.style.maxHeight = ''
+          info.style.height = ''             // ✨ release the lock when stacked
+        }
+      }
+      runFits()
+    }
+
+    const ro = new ResizeObserver(check)
+    ro.observe(canvas)
+    ro.observe(info)
+    window.addEventListener('resize', check)
+    check()
+
+    return () => { ro.disconnect(); window.removeEventListener('resize', check) }
+  }, [visual, rows, cols, cell, showDetails, alg, theme])
+
+
+
+
 
   // Setup model+view when visual/rows/cols/cell changes
   useEffect(() => {
@@ -665,37 +776,40 @@ export default function App() {
       </header>
 
       <main>
-        {/* Settings Panel */}
-        <div id="settingsPanel" className={visual === 'maze' ? 'visible' : ''}>
-          
-          <button id="settingsToggle" onClick={() => setSettingsOpen(v => !v)}>
-            {settingsOpen ? 'Settings ▼' : 'Settings ▲'}
-          </button>
 
-          <div id="settingsBox" className={'settingsBox ' + (settingsOpen ? 'visible' : '')}>
-            <label>Rows <input id="rowsInput" type="number" min="5" max="100" value={rows} onChange={e => setRows(Number(e.target.value)||19)} /></label>
-            <label>Cols <input id="colsInput" type="number" min="5" max="100" value={cols} onChange={e => setCols(Number(e.target.value)||22)} /></label>
-            <label>Cell <input id="cellInput" type="number" min="10" max="60" value={cell} onChange={e => setCell(Number(e.target.value)||30)} /></label>
-            <label><input type="checkbox" checked={showDetails} onChange={e => setShowDetails(e.target.checked)} /> Show details</label>
-          </div>
-        </div>
 
         <div className="canvasWrap">
+          {/* Settings Panel */}
+          <div id="settingsPanel" className={visual === 'maze' ? 'visible' : ''}>
+            
+            <button id="settingsToggle" onClick={() => setSettingsOpen(v => !v)}>
+              {settingsOpen ? 'Settings ▼' : 'Settings ▲'}
+            </button>
+
+            <div id="settingsBox" className={'settingsBox ' + (settingsOpen ? 'visible' : '')}>
+              <label>Rows <input id="rowsInput" type="number" min="5" max="100" value={rows} onChange={e => setRows(Number(e.target.value)||19)} /></label>
+              <label>Cols <input id="colsInput" type="number" min="5" max="100" value={cols} onChange={e => setCols(Number(e.target.value)||22)} /></label>
+              <label>Cell <input id="cellInput" type="number" min="10" max="60" value={cell} onChange={e => setCell(Number(e.target.value)||30)} /></label>
+              <label><input type="checkbox" checked={showDetails} onChange={e => setShowDetails(e.target.checked)} /> Show details</label>
+            </div>
+          </div>
+
+
           <canvas ref={canvasRef} />
-          <aside id="infoPanel" className="algoInfo">
+          <aside id="infoPanel" className="algoInfo" ref={infoRef}>
             <div className="infoHeader">
               <h2>{info.title}</h2>
             </div>
 
             <div className="infoGrid">
-              <section className="need">
+              <section className="need" ref={needRef}>
                 <h3>1 · Need to Know</h3>
                 <ul className="bullet">
                   {info.req.split('\n').map((line, i) => <li key={i}>{line.trim()}</li>)}
                 </ul>
               </section>
 
-              <section className="how">
+              <section className="how" ref={howRef}>
                 <h3>2 · How it works</h3>
                 <div className="howBody">{info.desc}</div>
               </section>
@@ -706,6 +820,13 @@ export default function App() {
               </section>
             </div>
           </aside>
+
+
+          <section id="codeBelow" className="codeBelow">
+            <h3>3 · Pseudocode</h3>
+            <pre className="codeBlock">{info.code}</pre>
+          </section>
+
 
         </div>
 

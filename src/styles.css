@@ -19,7 +19,7 @@
   --shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
   --shadow-lg: 0 14px 40px rgba(15, 23, 42, .10);
 
-  --panel-w: 720px;
+  --panel-w: clamp(560px, 56vw, 1120px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,9 +55,9 @@ body {
 }
 
 /* ----- Layout containers -------------------------------------------------- */
-header {
+header{
   width: 100%;
-  max-width: 1100px;
+  max-width: 1280px;
   padding: 1.25rem 1.25rem 0.75rem;
   position: relative;
 }
@@ -105,6 +105,39 @@ h1 {
 @media (max-width: 960px) {
   .controls { grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 1200px){
+  .controls{
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    align-items: center;
+  }
+
+  /* Don’t let buttons become tiny pills */
+  .controls button{ min-width: 96px; }
+
+  /* Range should grow across its cell */
+  .controls input[type="range"]{ width: 100%; }
+
+  /* Put the “mode” strips and markers on their own rows and left-align them */
+  .controls .modePanel,
+  .controls .markerPanel{
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  /* Reset button stays visible, not squeezed to the far right */
+  .controls .resetFull{ justify-self: start; }
+}
+
+@media (max-width: 900px){
+  .controls{ grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px){
+  .controls{ grid-template-columns: 1fr; }
+}
+
 
 .controls label {
   color: var(--muted);
@@ -198,23 +231,93 @@ input[type="range"]::-moz-range-thumb {
 main {
   position: relative;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1440px;
   padding: 1rem 1.25rem 2rem;
 }
 
+/* Stage layout: canvas left, info panel right; stacks when narrow */
 .canvasWrap {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: max-content minmax(520px, var(--panel-w));
   gap: .75rem;
+  align-items: start;
+  width: 100%;
 }
 
+/* Stack below when the container is too narrow */
+@media (max-width: 1200px){
+  .canvasWrap { grid-template-columns: 1fr; }
+}
+
+/* default two-column row layout (no split) */
+.canvasWrap {
+  grid-template-areas: "canvas info";
+}
+
+/* when we need to split (move pseudocode under canvas only) */
+.canvasWrap.splitInfo {
+  grid-template-areas:
+    "canvas info"
+    "code   info";
+  grid-auto-rows: auto;
+}
+
+/* final fallback: stack everything below canvas */
+.canvasWrap.stackInfo {
+  grid-template-areas:
+    "canvas"
+    "info"
+    "code";
+  grid-template-columns: 1fr;
+}
+
+/* on narrow screens (everything below) */
+@media (max-width: 1200px){
+  .canvasWrap {
+    grid-template-areas:
+      "canvas"
+      "info"
+      "code";
+  }
+}
+
+@media (max-width: 1360px){
+  .canvasWrap{ grid-template-columns: 1fr; }
+  .canvasWrap{
+    grid-template-areas:
+      "canvas"
+      "info"
+      "code";
+  }
+  #infoPanel{
+    width: 100%;
+    flex: 1 1 100%;
+    max-width: 100%;
+    order: 2;
+  }
+  #infoPanel .code{ display: flex; }
+  #codeBelow{ display: none; }
+}
+
+/* place items into the areas */
+canvas      { grid-area: canvas; }
+#infoPanel  { grid-area: info; }
+#codeBelow  { grid-area: code; }
+
+
 canvas {
+  /* keep the visual styling */
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--card);
   box-shadow: var(--shadow-md);
   cursor: crosshair;
+
+  /* important: never scale the element */
+  display: block;         /* avoid inline gaps */
+  max-width: none;        /* prevent shrinking */
+  justify-self: start;    /* don't stretch in CSS grid */
+  align-self: start;
 }
 
 /* Settings panel ------------------------------------------------------- */
@@ -256,6 +359,8 @@ canvas {
 #rowsInput, #colsInput, #cellInput { width: 3.25rem; text-align: right; }
 .settingsBox label { display: flex; justify-content: space-between; gap: .75rem; align-items: center; }
 
+
+
 /* Marker panel --------------------------------------------------------- */
 .markerPanel {
   display: flex;
@@ -285,10 +390,9 @@ canvas {
 
 /* Info panel ----------------------------------------------------------- */
 #infoPanel{
-  position:absolute;
-  right: calc(-1 * var(--panel-w) - .75rem);
-  top: 0;
-  width: var(--panel-w);
+  position: relative;           /* no absolute offset off-screen */
+  width: auto;
+  flex: initial;   /* participate in flex layout */
   padding: .75rem .9rem;
   background: var(--card);
   border: 1px solid var(--border);
@@ -296,31 +400,48 @@ canvas {
   border-radius: var(--radius);
   font-size: .9rem;
   line-height: 1.45;
-  height: 100%;
-  overflow: hidden;            /* no scrolling */
+  overflow: hidden;             /* no inner horizontal scroll */
   display: grid;
-  grid-template-rows: auto 1fr;/* header row + content grid */
+  grid-template-rows: auto 1fr; /* header + content grid */
   gap: .5rem;
 }
 
-/* Title row */
+/* On wide screens, keep the panel beside the canvas and make it sticky */
+@media (min-width: 1201px){
+  #infoPanel{
+    position: sticky;
+    top: .5rem;
+    align-self: flex-start;
+    max-height: calc(100vh - 1rem); /* visible without off-screen overflow */
+  }
+}
+
+/* On medium/narrow screens, stack below the canvas at full width */
+@media (max-width: 1200px){
+  #infoPanel{
+    width: 100%;
+    flex: 1 1 100%;
+    max-width: 100%;
+    order: 2;                  /* appear after canvas in flow */
+  }
+}
+
+/* Info panel title */
 #infoPanel .infoHeader h2{
   margin:.25rem 0 .25rem;
   font-size:1.05rem;
 }
 
-/* 2×2 content grid:
-   - Left column has two rows (Need / How)
-   - Right column spans both rows (Pseudocode) */
+/* Content grid: 2 columns on roomy widths */
 #infoPanel .infoGrid{
-  display: grid;
-  grid-template-columns: 1fr 1.25fr; /* right side slightly wider for code */
-  grid-template-rows: 1fr 1fr;
-  gap: .6rem;
-  min-height: 0; /* allow children to shrink inside */
+   display: grid;
+   grid-template-columns: 0.8fr 2.4fr;
+   grid-template-rows: auto auto;   /* let rows grow to content */
+   gap: .6rem;
+   min-height: 0;
 }
 
-/* Card look for each cell */
+/* Cards */
 #infoPanel .infoGrid > section{
   background: color-mix(in srgb, var(--card), transparent 4%);
   border: 1px solid var(--border);
@@ -329,7 +450,9 @@ canvas {
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  min-height: 0; /* critical for preventing overflow */
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 #infoPanel h3{
@@ -338,44 +461,86 @@ canvas {
   color: var(--muted);
 }
 
-/* Place the sections in the grid */
+/* Grid placement */
 #infoPanel .need { grid-area: 1 / 1 / 2 / 2; }
 #infoPanel .how  { grid-area: 2 / 1 / 3 / 2; }
 #infoPanel .code { grid-area: 1 / 2 / 3 / 3; }
 
-/* Text blocks that should wrap and never force scroll */
-#infoPanel ul.bullet {
-  padding-left: 1.25rem;
-  margin: 0;
-  list-style-type: disc;
-  color: var(--text);
-  overflow: hidden;
-}
-#infoPanel .howBody{
-  overflow: hidden;
-  text-wrap: pretty;
+/* Dynamic fit scaling for the two descriptive cards */
+#infoPanel .need,
+#infoPanel .how {
+  --fit-scale: 1;
 }
 
-/* Pseudocode: wrap lines, keep it compact, fill the right column */
-#infoPanel .code{
-  /* make pre consume the available space without adding scrollbars */
-  display: flex;
-  min-height: 0;
+#infoPanel .need ul.bullet,
+#infoPanel .how .howBody {
+  font-size: calc(0.95rem * var(--fit-scale));
+  line-height: calc(1.45 * var(--fit-scale));
 }
+
+/* Make sure these bodies can reflow and wrap cleanly */
+#infoPanel ul.bullet,
+#infoPanel .howBody {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+
+/* Wrap text cleanly */
+#infoPanel ul.bullet {
+  padding-left: 0; 
+  margin: 0; 
+  list-style: none; 
+  color: var(--text);
+  overflow: visible;                 /* allow content to show */
+  white-space: normal;
+  overflow-wrap: anywhere;           /* break long tokens if needed */
+  hyphens: auto;
+}
+
+#infoPanel .howBody{
+  overflow: visible;              
+  white-space: normal;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+/* Pseudocode block sizing & wrapping */
+#infoPanel .code{ display:flex; min-height:0; }
+
 #infoPanel .codeBlock{
   flex: 1 1 auto;
   margin: 0;
-  white-space: pre-wrap;     /* soft wrap long lines */
-  word-break: break-word;    /* break long tokens if needed */
+
+  /* keep lines intact + allow scrolling */
+  white-space: pre;          /* was pre-wrap */
+  overflow-x: auto;          /* horizontal scroll when needed */
+  overflow-y: auto;          /* fix the overflow:-y typo */
+  /* ✨ remove any later "overflow: hidden" line for this selector */
+
+  word-break: normal;
   background: color-mix(in srgb, var(--card), transparent 6%);
   border: 1px dashed var(--border);
   padding: .6rem;
   border-radius: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: .78rem;         /* small enough to avoid scroll */
+  font-size: clamp(.72rem, 1.6vw, .78rem);
   line-height: 1.35;
-  overflow: hidden;          /* no scrollbars */
+  
 }
+
+/* Single-column layout on narrow panels (phones/tablets) */
+@media (max-width: 900px){
+  #infoPanel .infoGrid{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  #infoPanel .need { grid-area: 1 / 1 / 2 / 2; }
+  #infoPanel .how  { grid-area: 2 / 1 / 3 / 2; }
+  #infoPanel .code { grid-area: 3 / 1 / 4 / 2; }
+}
+
 
 
 
@@ -397,7 +562,45 @@ canvas {
   margin: 0;
   list-style-type: disc;
 }
-#infoPanel ul.bullet li { margin: .15rem 0; color: var(--text); }
+
+
+#infoPanel ul.bullet li { 
+  margin: .15rem 0; 
+  color: var(--text); 
+
+}
+
+
+
+
+
+/* When splitting: hide pseudocode inside side panel; show below-canvas copy */
+.canvasWrap.splitInfo #infoPanel .code { display: none; }
+#codeBelow { display: none; }                  /* default: hidden */
+.canvasWrap.splitInfo #codeBelow { display: block; }
+
+/* On narrow screens: show all sections inside the info panel, hide the below-canvas copy */
+@media (max-width: 1200px){
+  #infoPanel .code { display: flex; }
+  #codeBelow { display: none; }
+}
+
+#codeBelow{
+  background: color-mix(in srgb, var(--card), transparent 4%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: .6rem .65rem;
+  box-shadow: var(--shadow-sm);
+  font-size: .9rem;
+}
+#codeBelow h3{
+  margin:.5rem 0 .35rem;
+  font-size:.95rem;
+  color: var(--muted);
+}
+/* reuse your existing .codeBlock styles */
+
+
 
 /* Metrics (placeholder) */
 #metrics { margin-top: .75rem; font-size: .9rem; color: var(--muted); }
@@ -486,4 +689,20 @@ body.theme-dark {
   border-radius: 999px;
   background: currentColor;
   opacity: .6;
+}
+
+body{
+  background: var(--bg);
+  min-height: 100svh;
+  position: relative;
+}
+body::before{
+  content:"";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(37,99,235,0.06), transparent 60%),
+    radial-gradient(1000px 600px at 110% 10%, rgba(34,197,94,0.06), transparent 60%),
+    var(--bg);
 }
