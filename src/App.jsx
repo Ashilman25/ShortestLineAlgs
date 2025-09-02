@@ -9,6 +9,7 @@ import { dijShortestPath, dijkstraNodePath } from './algorithms/dijkstra.js'
 import { aStarShortestPath } from './algorithms/astar.js'
 import { bellmanFordShortestPath } from './algorithms/bellmanford.js'
 import { floydWarsShortestPath } from './algorithms/floydwarshall.js'
+import { bfsNodePath, dfsNodePath } from './algorithms/traversals.js'
 
 const TWO_COL_BP = 1360;
 
@@ -18,6 +19,9 @@ const ALG = {
   bellmanFord: bellmanFordShortestPath,
   floydWarshall: floydWarsShortestPath,
 }
+
+const MAZE_ALGS = ['dijkstra','astar','bellmanFord','floydWarshall']
+const NODE_ALGS = ['dijkstra','bfs','dfs']
 
 const INFO = {
   dijkstra: {
@@ -118,7 +122,60 @@ Cannot handle negative cycles (detectable if d[i][i] < 0)`,
   for v in 0..V-1:
     if dist[v][v] < 0: return 'NEGATIVE CYCLE'
   return dist`
-  }
+  },
+
+
+  bfs: {
+    title: 'BFS (Breadth-First Search)',
+    req: `Unweighted graph (treat each edge as cost 1)
+Finds shortest path by edge count
+Time: O(V + E); Space: O(V)`,
+    desc: 'Expands the frontier in layers from the start node using a FIFO queue; the first time the goal is dequeued, the discovered path is the minimum number of edges.',
+    code: `function BFS(Graph, start, goal):
+  for each v: prev[v] := undefined
+  visited := empty set
+  Q := empty queue
+  visited.add(start)
+  Q.enqueue(start)
+
+  while Q not empty:
+    u := Q.dequeue()
+    if u == goal:
+      return reconstruct(prev, goal)
+    for each edge (u, v):
+      if v not in visited:
+        visited.add(v)
+        prev[v] := u
+        Q.enqueue(v)
+
+  return failure`
+  },
+  dfs: {
+    title: 'DFS (Depth-First Search)',
+    req: `Weights not used
+Finds any path (not guaranteed shortest)
+Time: O(V + E); Space: O(V)`,
+    desc: 'Explores as deep as possible along each branch before backtracking (LIFO stack or recursion). Useful for reachability/structure; does not guarantee a shortest path.',
+    code: `function DFS(Graph, start, goal):
+  for each v: prev[v] := undefined
+  visited := empty set
+  S := empty stack
+  visited.add(start)
+  S.push(start)
+
+  while S not empty:
+    u := S.pop()
+    if u == goal:
+      return reconstruct(prev, goal)
+    for each edge (u, v):
+      if v not in visited:
+        visited.add(v)
+        prev[v] := u
+        S.push(v)
+
+  return failure`
+  },
+
 }
 
 export default function App() {
@@ -179,6 +236,21 @@ export default function App() {
 
   // when you leave Nodes mode, clear any toggle
   useEffect(() => { if (visual !== 'nodes') setNodeUIMode(null) }, [visual])
+
+  // Keep alg valid when switching visual
+  useEffect(() => {
+    if (visual === 'maze' && !MAZE_ALGS.includes(alg)) setAlg('dijkstra')
+      if (visual === 'nodes' && !NODE_ALGS.includes(alg)) setAlg('dijkstra')
+      }, [visual]) // eslint-disable-line react-hooks/exhaustive-deps
+    
+  // Toggle edge weight pills in NodeView depending on node algorithm
+  useEffect(() => {
+    if (visual !== 'nodes') return
+    const v = viewRef.current
+    if (!v?.setShowWeights) return
+    const usesWeights = alg === 'dijkstra' // BFS/DFS ignore weights
+    v.setShowWeights(usesWeights)
+  }, [alg, visual])
 
   // reflect UI mode to NodeView flags
   useEffect(() => {
@@ -629,8 +701,13 @@ export default function App() {
       startRAF()
     } else {
       const view = viewRef.current
+      const compute = () => {
+        if (alg === 'bfs') return bfsNodePath(modelRef.current)
+        if (alg === 'dfs') return dfsNodePath(modelRef.current)
+        return dijkstraNodePath(modelRef.current)
+      }
       if (!view.anim.path.length) {
-        const path = dijkstraNodePath(modelRef.current)
+        const path = compute()
         if (!path.length) { alert('No path'); return }
         view.startAnim(path)
       } else {
@@ -661,8 +738,14 @@ export default function App() {
       stepAnim()
     } else {
       const v = viewRef.current
+      const compute = () => {
+        if (alg === 'bfs') return bfsNodePath(modelRef.current)
+        if (alg === 'dfs') return dfsNodePath(modelRef.current)
+        return dijkstraNodePath(modelRef.current)
+      }
       if (!v.anim.path.length) {
-        const path = dijkstraNodePath(modelRef.current)
+        const path = compute()
+
         if (!path.length) { alert('No path'); return }
         v.startAnim(path)
         v.pauseAnim?.()
@@ -759,11 +842,21 @@ export default function App() {
           </label>
 
           <label>Algorithm:&nbsp;
-            <select value={alg} onChange={e => { setAlg(e.target.value); }}>
-              <option value="dijkstra">Dijkstra</option>
-              <option value="astar">A*</option>
-              <option value="bellmanFord">Bellman-Ford</option>
-              <option value="floydWarshall">Floyd-Warshall</option>
+            <select value={alg} onChange={e => { setAlg(e.target.value) }}>
+              {visual === 'maze' ? (
+                <>
+                  <option value="dijkstra">Dijkstra</option>
+                  <option value="astar">A*</option>
+                  <option value="bellmanFord">Bellman-Ford</option>
+                  <option value="floydWarshall">Floyd-Warshall</option>
+                </>
+              ) : (
+                <>
+                  <option value="dijkstra">Dijkstra (weighted)</option>
+                  <option value="bfs">BFS (unweighted)</option>
+                  <option value="dfs">DFS (any path)</option>
+                </>
+              )}
             </select>
           </label>
 

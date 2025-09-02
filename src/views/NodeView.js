@@ -17,7 +17,8 @@ export default class NodeView {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
     this.model = model
-    this.opt = { font: '16px system-ui', ...opt }
+    this.opt = { font: '16px system-ui', showWeights: true, ...opt }
+
 
     this._dragging = null
     this._edgeMode = false
@@ -125,6 +126,9 @@ export default class NodeView {
 
   _onDbl(ev) {
     if (this._edgeMode || this._delMode || this._delNodeMode) return
+    if (!this.opt.showWeights) return  // weights not used (e.g., BFS/DFS)
+
+    
     const { x, y } = this._eventPos(ev)
     const edge = this._edgeAt(x, y, 10)
     if (!edge) return
@@ -147,6 +151,11 @@ export default class NodeView {
     this._delNodeMode = on
     if (on) { this._edgeMode = false; this._delMode = false; this._edgeFrom = null }
     this._hoverNode = null; this.canvas.style.cursor = on ? 'crosshair' : 'default'; this.draw()
+  }
+
+  setShowWeights(on) {
+    this.opt.showWeights = !!on
+    this.draw()
   }
 
   _edgeAt(x, y, tolerance = 8) {
@@ -204,24 +213,26 @@ export default class NodeView {
       ctx.closePath(); ctx.fill()
 
       // weight label (rounded pill)
-      ctx.save()
-      ctx.font = '12px system-ui'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      const midX = (startX + endX) / 2
-      const midY = (startY + endY) / 2
-      const label = String(e.w)
-      const padding = 4
-      const metrics = ctx.measureText(label)
-      const w = metrics.width + padding * 2, h = 16
-      ctx.fillStyle = 'rgba(255,255,255,.9)'
-      ctx.strokeStyle = 'rgba(229,231,235,1)' // gray-200
-      ctx.lineWidth = 1
-      roundRect(ctx, midX - w / 2, midY - h / 2 - 8, w, h, 8)
-      ctx.fill(); ctx.stroke()
-      ctx.fillStyle = '#0f172a' // slate-900
-      ctx.fillText(label, midX, midY - 8)
-      ctx.restore()
+      if (this.opt.showWeights) {
+        ctx.save()
+        ctx.font = '12px system-ui'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        const midX = (startX + endX) / 2
+        const midY = (startY + endY) / 2
+        const label = String(e.w)
+        const padding = 4
+        const metrics = ctx.measureText(label)
+        const w = metrics.width + padding * 2, h = 16
+        ctx.fillStyle = 'rgba(255,255,255,.9)'
+        ctx.strokeStyle = 'rgba(229,231,235,1)'
+        ctx.lineWidth = 1
+        roundRect(ctx, midX - w / 2, midY - h / 2 - 8, w, h, 8)
+        ctx.fill(); ctx.stroke()
+        ctx.fillStyle = '#0f172a'
+        ctx.fillText(label, midX, midY - 8)
+        ctx.restore()
+      }
     }
 
     /* dashed temp edge while adding */
