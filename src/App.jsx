@@ -190,7 +190,22 @@ export default function App() {
   }, [nodeUIMode])
 
 
-  const [settingsOpen, setSettingsOpen] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsBtnRef = useRef(null)
+
+  useEffect(() => {
+    if (!settingsOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') setSettingsOpen(false) }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+      // return focus to the button that opened the modal
+      settingsBtnRef.current?.focus?.()
+    }
+  }, [settingsOpen])
 
   const canvasRef = useRef(null)
   const modelRef  = useRef(null)  // GridModel | NodeModel
@@ -708,7 +723,21 @@ export default function App() {
       <header>
         <h1>Shortest Path Algorithms</h1>
 
-        <div className="themeToggle">
+          <div className="topButtons">
+            {visual === 'maze' && (
+              <button
+                className="iconBtn settingsBtn"
+                ref={settingsBtnRef}
+                aria-haspopup="dialog"
+                aria-controls="settingsModal"
+                aria-expanded={settingsOpen}
+                title="Settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                ⚙︎
+              </button>
+            )}
+
             <button
               className="iconBtn"
               onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
@@ -717,7 +746,9 @@ export default function App() {
             >
               {theme === 'dark' ? '☀︎' : '☾'}
             </button>
-        </div>
+          </div>
+
+
 
         <div className="controls">
           <label>Visual:&nbsp;
@@ -804,35 +835,64 @@ export default function App() {
 
 
         <div className="canvasWrap">
-          {/* Settings Panel */}
-          <div id="settingsPanel" className={visual === 'maze' ? 'visible' : ''}>
-            
-            <button id="settingsToggle" onClick={() => setSettingsOpen(v => !v)}>
-              {settingsOpen ? 'Settings ▼' : 'Settings ▲'}
-            </button>
 
-            <div id="settingsBox" className={'settingsBox ' + (settingsOpen ? 'visible' : '')}>
-              <label>
-                Grid (n × n)
-                <input
-                  id="nInput"
-                  type="number"
-                  min={MIN_N}
-                  max={MAX_N}
-                  value={n}
-                  onChange={e => setN(Number(e.target.value) || n)}
-                />
-              </label>
+          {settingsOpen && visual === 'maze' && (
+            <div
+              id="settingsModal"
+              className="modalOverlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="settingsTitle"
+              onClick={() => setSettingsOpen(false)}  // click outside closes
+            >
+              <div
+                className="modalPanel"
+                onClick={(e) => e.stopPropagation()}   // don't close when clicking the panel
+              >
+                <div className="modalHeader">
+                  <h2 id="settingsTitle">Maze Settings</h2>
+                  <button
+                    className="iconBtn closeBtn"
+                    aria-label="Close settings"
+                    onClick={() => setSettingsOpen(false)}
+                    title="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-              <label>
-                <input
-                  type="checkbox"
-                  checked={showDetails}
-                  onChange={e => setShowDetails(e.target.checked)}
-                /> Show details
-              </label>
+                <div className="modalBody">
+                  <label className="row">
+                    <span>Grid (n × n)</span>
+                    <input
+                      id="nInput"
+                      type="number"
+                      min={MIN_N}
+                      max={MAX_N}
+                      value={n}
+                      onChange={e => setN(Number(e.target.value) || n)}
+                    />
+                  </label>
+
+                  <label className="row checkboxRow">
+                    <input
+                      type="checkbox"
+                      checked={showDetails}
+                      onChange={e => setShowDetails(e.target.checked)}
+                    />
+                    <span>Show details</span>
+                  </label>
+                </div>
+
+                <div className="modalFooter">
+                  <button className="primary" onClick={() => setSettingsOpen(false)}>
+                    Done
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
 
         <canvas ref={canvasRef} />
         <aside id="infoPanel" className="algoInfo" ref={infoRef}>
