@@ -132,9 +132,8 @@ export default function App() {
   const [nodeUIMode, setNodeUIMode] = useState(null)
 
   const GRID_SIZE = Math.min(22 * 30, 19 * 30);
-  const MIN_CELL = 12;
   const MIN_N = 5;
-  const MAX_N = Math.floor(GRID_SIZE / MIN_CELL);
+  const MAX_N = 100;
 
   const [n, setN] = useState(19);
   const rows = n;
