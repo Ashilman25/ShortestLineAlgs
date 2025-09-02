@@ -398,7 +398,7 @@ canvas {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
   border-radius: var(--radius);
-  font-size: .9rem;
+  font-size: .9rem;             /* BASE info panel font size (adjust here to scale all inner text) */
   line-height: 1.45;
   overflow: hidden;             /* no inner horizontal scroll */
   display: grid;
@@ -429,7 +429,7 @@ canvas {
 /* Info panel title */
 #infoPanel .infoHeader h2{
   margin:.25rem 0 .25rem;
-  font-size:1.05rem;
+  font-size:1.05rem;            /* Algorithm title size */
 }
 
 /* Content grid: 2 columns on roomy widths */
@@ -457,7 +457,7 @@ canvas {
 
 #infoPanel h3{
   margin:.1rem 0 .4rem;
-  font-size:.95rem;
+  font-size:.95rem;             /* Section heading size (Need / How / Pseudocode) */
   color: var(--muted);
 }
 
@@ -474,8 +474,8 @@ canvas {
 
 #infoPanel .need ul.bullet,
 #infoPanel .how .howBody {
-  font-size: calc(0.95rem * var(--fit-scale));
-  line-height: calc(1.45 * var(--fit-scale));
+  font-size: calc(0.95rem * var(--fit-scale)); /* Descriptive text size (multiplied by --fit-scale if dynamic scaling applied) */
+  line-height: calc(1.45 * var(--fit-scale));  /* Matching line height scaling */
 }
 
 /* Make sure these bodies can reflow and wrap cleanly */
@@ -525,7 +525,7 @@ canvas {
   padding: .6rem;
   border-radius: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: clamp(.72rem, 1.6vw, .78rem);
+  font-size: clamp(.72rem, 1.6vw, .78rem); /* Responsive pseudocode font: scales with viewport width (1.6vw) within min/max bounds */
   line-height: 1.35;
   
 }

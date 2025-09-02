@@ -124,15 +124,34 @@ Cannot handle negative cycles (detectable if d[i][i] < 0)`,
 export default function App() {
   const [visual, setVisual] = useState('maze')       // 'maze' | 'nodes'
   const [alg, setAlg]       = useState('dijkstra')
-  const [rows, setRows]     = useState(19)
-  const [cols, setCols]     = useState(22)
-  const [cell, setCell]     = useState(30)
+
   const [showDetails, setShowDetails] = useState(false)
   const [speed, setSpeed]   = useState(120)
   const [theme, setTheme]   = useState('light')
   const [renderScale, setRenderScale] = useState(1) //1 to 3
   const [nodeUIMode, setNodeUIMode] = useState(null)
-  
+
+  const GRID_SIZE = Math.min(22 * 30, 19 * 30);
+  const MIN_CELL = 12;
+  const MIN_N = 5;
+  const MAX_N = Math.floor(GRID_SIZE / MIN_CELL);
+
+  const [n, setN] = useState(19);
+  const rows = n;
+  const cols = n;
+
+  const cellPx = useMemo(() => GRID_SIZE / n, [n]);
+
+  useEffect(() => {
+    const nn = Math.max(MIN_N, Math.min(MAX_N, n));
+    if (nn !== n) { setN(nn); return; }
+    resetAnim();
+    viewRef.current?.draw?.();
+    drawGridOverlay();
+  }, [n]);
+
+
+
 
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-dark')
@@ -292,32 +311,34 @@ export default function App() {
     check()
 
     return () => { ro.disconnect(); window.removeEventListener('resize', check) }
-  }, [visual, rows, cols, cell, showDetails, alg, theme])
+  }, [visual, n, showDetails, alg, theme])
 
 
 
 
 
   // Setup model+view when visual/rows/cols/cell changes
+  // Setup model+view when visual/rows/cols/grid size changes
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Cleanup previous view listeners if swapping types
-    if (viewRef.current && viewRef.current.destroy) {
+    if (viewRef.current?.destroy) {
       try { viewRef.current.destroy() } catch {}
-
     }
 
-    if (visual === 'maze') {
-      modelRef.current = new GridModel(rows, cols)
-      const style = getComputedStyle(document.body)
-      const grid = style.getPropertyValue('--grid-lines').trim() || (theme==='dark' ? 'rgba(148,163,184,.28)' : 'rgba(229,231,235,.8)');
-      const wall = style.getPropertyValue('--wall').trim() || (theme==='dark' ? '#334155' : '#0f172a');
+    // Lock the on-page canvas size to a square; the drawn size matches exactly.
+    canvas.style.width  = `${GRID_SIZE}px`
+    canvas.style.height = `${GRID_SIZE}px`
 
+    if (visual === 'maze') {
+      modelRef.current = new GridModel(n, n)
+      const style = getComputedStyle(document.body)
+      const grid = style.getPropertyValue('--grid-lines').trim() || (theme==='dark' ? 'rgba(148,163,184,.28)' : 'rgba(229,231,235,.8)')
+      const wall = style.getPropertyValue('--wall').trim()       || (theme==='dark' ? '#334155'              : '#0f172a')
 
       viewRef.current = new GridView(canvas, modelRef.current, {
-        cellSize: cell,
+        cellSize: cellPx,   // exactly GRID_SIZE / n
         bgColor: null,
         gridColor: grid,
         wallColor: wall,
@@ -326,17 +347,16 @@ export default function App() {
 
       viewRef.current.draw()
       resetAnim()
-
     } else {
       modelRef.current = new NodeModel()
       viewRef.current  = new NodeView(canvas, modelRef.current)
     }
 
-    // Drag & drop markers
+    // DnD handlers unchanged...
     const onDragOver = e => e.preventDefault()
     const onDrop = e => {
       e.preventDefault()
-      const kind = e.dataTransfer.getData('text/plain') // 'start' | 'end'
+      const kind = e.dataTransfer.getData('text/plain')
       if (!kind) return
       const rect = canvas.getBoundingClientRect()
       if (visual === 'maze') {
@@ -358,21 +378,25 @@ export default function App() {
       canvas.removeEventListener('dragover', onDragOver)
       canvas.removeEventListener('drop', onDrop)
     }
-  }, [visual, rows, cols, cell, renderScale])
+  }, [visual, n, cellPx, renderScale, theme])  // ← no gridW/gridH here
+
+
 
   // Painting for maze mode
   useEffect(() => {
     if (visual !== 'maze') return
     const canvas = canvasRef.current
-    const view = viewRef.current
-    const model = modelRef.current
     let isPainting = false, paintAdd = true, lastRC = null
 
     const getCell = (ev) => {
       const rect = canvas.getBoundingClientRect()
-      return view.cssToCell(ev.clientX - rect.left, ev.clientY - rect.top)
+      const view = viewRef.current
+      return view?.cssToCell(ev.clientX - rect.left, ev.clientY - rect.top)
     }
     const applyPaint = ([r, c]) => {
+      const model = modelRef.current
+      const view = viewRef.current
+      if (!model || !view) return
       if (paintAdd) model.addWall(r, c); else model.removeWall(r, c)
       view.draw()
       clearAnim()
@@ -382,6 +406,8 @@ export default function App() {
       if (e.button !== 0) return
       const rc = getCell(e)
       if (!rc) return
+      const model = modelRef.current
+      if (!model) return
       paintAdd = !model.isWall(...rc)
       applyPaint(rc)
       isPainting = true
@@ -405,7 +431,7 @@ export default function App() {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [visual])
+  }, [visual, n, cellPx])
 
   // Fix typo True -> true
   // (We can't edit the string above easily; patch quickly by redefining isPainting setter.)
@@ -787,16 +813,30 @@ export default function App() {
             </button>
 
             <div id="settingsBox" className={'settingsBox ' + (settingsOpen ? 'visible' : '')}>
-              <label>Rows <input id="rowsInput" type="number" min="5" max="100" value={rows} onChange={e => setRows(Number(e.target.value)||19)} /></label>
-              <label>Cols <input id="colsInput" type="number" min="5" max="100" value={cols} onChange={e => setCols(Number(e.target.value)||22)} /></label>
-              <label>Cell <input id="cellInput" type="number" min="10" max="60" value={cell} onChange={e => setCell(Number(e.target.value)||30)} /></label>
-              <label><input type="checkbox" checked={showDetails} onChange={e => setShowDetails(e.target.checked)} /> Show details</label>
+              <label>
+                Grid (n × n)
+                <input
+                  id="nInput"
+                  type="number"
+                  min={MIN_N}
+                  max={MAX_N}
+                  value={n}
+                  onChange={e => setN(Number(e.target.value) || n)}
+                />
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showDetails}
+                  onChange={e => setShowDetails(e.target.checked)}
+                /> Show details
+              </label>
             </div>
           </div>
 
-
-          <canvas ref={canvasRef} />
-          <aside id="infoPanel" className="algoInfo" ref={infoRef}>
+        <canvas ref={canvasRef} />
+        <aside id="infoPanel" className="algoInfo" ref={infoRef}>
             <div className="infoHeader">
               <h2>{info.title}</h2>
             </div>
