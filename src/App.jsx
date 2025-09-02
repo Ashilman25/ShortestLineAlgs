@@ -818,7 +818,7 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>Shortest Path Algorithms</h1>
+        <h1>Shortest Path Algorithms Visualized</h1>
 
           <div className="topButtons">
             {visual === 'maze' && (
