@@ -188,6 +188,9 @@ export default function App() {
   const [renderScale, setRenderScale] = useState(1) //1 to 3
   const [nodeUIMode, setNodeUIMode] = useState(null)
 
+  const [toastMsg, setToastMsg] = useState(null)
+  const toastTimerRef = useRef(null)
+
   const GRID_SIZE = Math.min(22 * 30, 19 * 30);
   const MIN_N = 5;
   const MAX_N = 100;
@@ -207,6 +210,15 @@ export default function App() {
   }, [n]);
 
 
+  const showNoPathToast = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+  setToastMsg('No path found')
+  toastTimerRef.current = setTimeout(() => setToastMsg(null), 2500)
+  }
+
+  useEffect(() => {
+    return() => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }
+  }, [])
 
 
   useEffect(() => {
@@ -698,6 +710,7 @@ export default function App() {
   function handlePlay() {
     if (visual === 'maze') {
       computeIfNeeded()
+      if (!animRef.current.path.length) { showNoPathToast(); return }
       startRAF()
     } else {
       const view = viewRef.current
@@ -708,7 +721,7 @@ export default function App() {
       }
       if (!view.anim.path.length) {
         const path = compute()
-        if (!path.length) { alert('No path'); return }
+        if (!path.length) { showNoPathToast(); return }
         view.startAnim(path)
       } else {
         view.anim.playing = true
@@ -746,7 +759,8 @@ export default function App() {
       if (!v.anim.path.length) {
         const path = compute()
 
-        if (!path.length) { alert('No path'); return }
+        if (!path.length) { showNoPathToast(); return }
+
         v.startAnim(path)
         v.pauseAnim?.()
       } else {
@@ -1023,6 +1037,24 @@ export default function App() {
         </div>
 
         <div id="metrics"></div>
+
+        <div
+          className={`toast ${toastMsg ? 'visible' : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-hidden={toastMsg ? 'false' : 'true'}
+        >
+          <div className="toastIcon" aria-hidden="true">
+            {/* Inline SVG matching the circled exclamation icon */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 7v6"></path>
+              <circle cx="12" cy="17" r="1.25"></circle>
+            </svg>
+          </div>
+          <div className="toastText">{toastMsg || ''}</div>
+        </div>
+
       </main>
     </>
   )
